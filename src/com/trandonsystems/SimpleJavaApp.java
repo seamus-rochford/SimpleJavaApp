@@ -5,6 +5,7 @@ import org.apache.log4j.Logger;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.trandonsystems.services.JavaMailServices;
 import com.trandonsystems.database.UserDAL;
 import com.trandonsystems.model.User;
 
@@ -28,6 +29,7 @@ public class SimpleJavaApp {
         System.out.println("		2. Test Environment variable");
         System.out.println("		3. Test logging");
         System.out.println("		4. Test DB");
+        System.out.println("		5. Test Email");
         System.out.println("		0. Exit");
         System.out.print("Input option: ");
 
@@ -113,6 +115,33 @@ public class SimpleJavaApp {
     		Gson gson = new GsonBuilder().setPrettyPrinting().create();
     		System.out.println("User: " + gson.toJson(user));		
         	break;
+        case "5":
+        	// Test Email
+    		log.info("Test Emails started ... ");
+    		
+        	System.out.print("Enter email: ");
+        	String email = System.console().readLine();    		
+    		
+        	System.out.print("Enter email subject: ");
+        	String emailSubject = System.console().readLine();    		
+    		
+        	System.out.print("Enter email body: ");
+        	String emailBody = System.console().readLine();
+        	
+            try {        	 
+                log.info("Initialize emailer ");
+    			JavaMailServices.initializeEmailer();
+     
+    			log.info("Send email");
+    			JavaMailServices.sendMail(email, emailSubject, false, emailBody);
+     
+                log.info("Email sent - check email to see if you received email");	        	
+           } catch (Exception ex) {
+                log.error("Server exception: " + ex.getMessage());
+                ex.printStackTrace();
+            }		
+
+            log.info(" ... Test Emails Terminated");	        	
         default:
         	break;
         }

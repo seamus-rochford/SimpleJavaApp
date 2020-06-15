@@ -10,7 +10,6 @@ import java.sql.SQLException;
 import org.apache.log4j.Logger;
 import org.jasypt.util.password.ConfigurablePasswordEncryptor;
 
-import com.trandonsystems.database.UtilDAL;
 import com.trandonsystems.model.User;
 
 public class UserDAL {
