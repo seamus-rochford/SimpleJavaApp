@@ -3,16 +3,24 @@ package com.trandonsystems.services;
 import java.sql.SQLException;
 import java.util.Properties;
 
+import javax.activation.DataHandler;
+import javax.activation.DataSource;
+import javax.activation.FileDataSource;
 import javax.mail.Authenticator;
+import javax.mail.BodyPart;
 import javax.mail.Message;
 import javax.mail.PasswordAuthentication;
 import javax.mail.Session;
 import javax.mail.Transport;
 import javax.mail.internet.InternetAddress;
+import javax.mail.internet.MimeBodyPart;
 import javax.mail.internet.MimeMessage;
+import javax.mail.internet.MimeMultipart;
 
 import org.apache.log4j.Logger;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.trandonsystems.database.SystemDAL;
 
 public class JavaMailServices {
@@ -23,18 +31,25 @@ public class JavaMailServices {
 	static String SMTP_PASSWORD = "password";
 	
 	static Logger log = Logger.getLogger(JavaMailServices.class);
-	
-	public static boolean initializeEmailer() {
+	static Gson gson = new GsonBuilder().setPrettyPrinting().create();
+
+	public static boolean initializeEmailer() throws Exception {
 		try {
 		
 			SMTP_HOST = SystemDAL.getSysConfigValue("SMTP-HOST");
 			SMTP_PORT = SystemDAL.getSysConfigValue("SMTP-PORT");
 			SMTP_ACCOUNT_EMAIL = SystemDAL.getSysConfigValue("SMTP-ACCOUNT-EMAIL");
 			SMTP_PASSWORD = SystemDAL.getSysConfigValue("SMTP-PASSWORD");
+
+			SMTP_HOST = "smtp.gmail.com";
+			SMTP_PORT = "465";    // 465 or 587
+			SMTP_ACCOUNT_EMAIL = "britebin@gmail.com";
+			SMTP_PASSWORD = "BriteBin@2020";
 			
 		} catch(SQLException ex) {
-			log.error("ERROR: failed to initialize Emailer");
-			return false;
+			log.error("ERROR: failed to initialize Emailer: " + ex.getMessage());
+			log.error(ex.getStackTrace());
+			throw ex;		
 		}
 		
 		return true;
@@ -42,32 +57,62 @@ public class JavaMailServices {
 	
 	public static void sendMail(String recepient, String subject, boolean htmlBody, String body) throws Exception {
 		try {
-//			Properties properties = new Properties();
-//			
-//			properties.put("mail.smtp.auth", "true");
-//			properties.put("mail.smtp.starttls.enabled", "true");
-//			properties.put("mail.smtp.starttls.required", "true");
-//			properties.put("mail.smtp.host", SMTP_HOST);
-//			properties.put("mail.smtp.port", SMTP_PORT);
 
-			Properties properties = System.getProperties();
-			properties.setProperty("mail.smtp.host", SMTP_HOST);
+//			String myAccountEmail = "britebin@gmail.com";
+//			String password = "BriteBin@2020";
+//
+//			Properties properties = new Properties();
+//
+//			properties.put("mail.smtp.host", "smtp.gmail.com");
+//			properties.put("mail.smtp.socketFactory.port", "465");
+//			properties.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
+//			properties.put("mail.smtp.auth", "true");
+//			properties.put("mail.smtp.port", "465");
 			
-			properties.put("mail.smtp.port", SMTP_PORT);
-			properties.put("mail.smtp.auth", "true");
-			properties.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
+
 
 			String myAccountEmail = SMTP_ACCOUNT_EMAIL;
 			String password = SMTP_PASSWORD;
 			
-			Session session = Session.getInstance(properties, new Authenticator() {
-				@Override
-				protected PasswordAuthentication getPasswordAuthentication() {
-					return new PasswordAuthentication(myAccountEmail, password);
-				}
-			});
+			log.debug("sendMail - start");
+			Properties properties = System.getProperties();
+			properties.setProperty("mail.smtp.host", SMTP_HOST);
+			log.debug("sendMail - mail.smtp.host set: " + SMTP_HOST);
+			
+			properties.put("mail.smtp.port", SMTP_PORT);
+			log.debug("sendMail - mail.smtp.port set: " + SMTP_PORT);
+			if (!password.equals("")) {
+				properties.put("mail.smtp.auth", "true");
+				log.debug("sendMail - mail.smtp.auth set: " + "true");
+				
+				properties.put("mail.smtp.socketFactory.port", SMTP_PORT);
+			} else {
+				properties.put("mail.smtp.auth", "false");
+				log.debug("sendMail - mail.smtp.auth set: " + "false");
+			}
+			properties.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
+			log.debug("sendMail - mail.smtp.socketFactory.class set: " + "javax.net.ssl.SSLSocketFactory");
+
+//			Session session = Session.getDefaultInstance(properties, null);
+			Session session = Session.getInstance(properties, null);
+			if (!password.equals("")) {
+				session = Session.getInstance(properties, new Authenticator() {
+					@Override
+					protected PasswordAuthentication getPasswordAuthentication() {
+						return new PasswordAuthentication(myAccountEmail, password);
+					}
+				});
+				log.debug("sendMail - Authentication Session created");
+			} else {
+				log.debug("sendMail - Session created without authentication");
+			}
+			
+			session.setDebug(true);
+			
+			log.debug("sendMail - prepareMessage");
 			
 			Message message = prepareMessage(session, myAccountEmail, recepient, subject, htmlBody, body);
+			log.debug("sendMail - prepareMessage complete");
 			
 			Transport.send(message);
 			
@@ -87,7 +132,31 @@ public class JavaMailServices {
 			message.setSubject(subject);
 			
 			if (htmlBody) {
-				message.setContent(body, "text/html");
+//				message.setContent(body, "text/html");
+				
+				// This Message has 2 parts - the body and the embed image
+		         MimeMultipart multipart = new MimeMultipart("related");
+
+		         // first part (the html)
+		         BodyPart messageBodyPart = new MimeBodyPart();
+		         // The body will have <img src=\"cid:image\"> inside it
+		         String htmlText = body;
+		         messageBodyPart.setContent(htmlText, "text/html");
+		         // add it
+		         multipart.addBodyPart(messageBodyPart);
+
+		         // second part (the image)
+		         messageBodyPart = new MimeBodyPart();
+		         DataSource fds = new FileDataSource("logo.png");
+
+		         messageBodyPart.setDataHandler(new DataHandler(fds));
+		         messageBodyPart.setHeader("Content-ID", "<image>");
+
+		         // add image to the multipart
+		         multipart.addBodyPart(messageBodyPart);
+
+		         // put everything together
+		         message.setContent(multipart);				
 			} else {
 				// Plain text body
 				message.setText(body);
@@ -134,6 +203,7 @@ public class JavaMailServices {
 	}
 
 	private static Message prepareMessage(Session session, String myAccountEmail, String[] recepients, String subject, String msg) throws Exception {
+
 		try {
 			Message message = new MimeMessage(session);
 			message.setFrom(new InternetAddress(myAccountEmail));
@@ -149,4 +219,5 @@ public class JavaMailServices {
 			throw ex;
 		}
 	}
+
 }

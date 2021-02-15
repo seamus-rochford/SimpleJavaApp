@@ -27,6 +27,7 @@ import javax.json.*;
 public class SimpleJavaApp {
 
 	final static Logger log = Logger.getLogger(SimpleJavaApp.class);
+	final static Gson gson = new GsonBuilder().setPrettyPrinting().create();
 	
 	private static boolean quit(String inst) {
 		if(inst.equalsIgnoreCase("bye") || inst.equalsIgnoreCase("exit") || inst.equalsIgnoreCase("quit") || inst.equalsIgnoreCase("exit")
@@ -228,6 +229,43 @@ public class SimpleJavaApp {
     	} 		
 	}
 	
+	private static void sendMultipleEmails() {
+		log.info("Test Emails started ... ");
+		
+    	System.out.print("Enter email: ");
+    	String email = System.console().readLine();    		
+		
+    	System.out.print("Enter email subject: ");
+    	String emailSubject = System.console().readLine();    		
+		
+    	System.out.print("Enter email body: ");
+    	String emailBody = System.console().readLine();
+    	
+    	System.out.print("Enter no. emails to send: ");
+    	int noEmails = Integer.parseInt(System.console().readLine());
+    	
+    	try {        	 
+            log.info("Initialize emailer ");
+			JavaMailServices.initializeEmailer();
+ 
+			for (int i = 0; i < noEmails; i++) {
+				try {
+					log.info("Send email: " + i);
+					JavaMailServices.sendMail(email, emailSubject + ' ' + i, false, emailBody);
+		            log.info("Email sent - check email to see if you received email");	        	
+				} catch (Exception ex) {
+		            log.error("Server exception: " + ex.getMessage());					
+				}
+			}
+ 
+       } catch (Exception ex) {
+            log.error("Server exception: " + ex.getMessage());
+            ex.printStackTrace();
+        }		
+
+        log.info(" ... Test Multiple Emails Terminated");		
+	}
+	
     public static void main(String[] args) {
 
         System.out.println("Test Instructions ");
@@ -239,6 +277,7 @@ public class SimpleJavaApp {
         System.out.println("		6. Test Login API call");
         System.out.println("		7. Test Send SMS");
         System.out.println("		8. Show Working directory");
+        System.out.println("        9. Send multiple emails");
         System.out.println("		0. Exit");
         System.out.print("Input option: ");
 
@@ -286,6 +325,10 @@ public class SimpleJavaApp {
         	break;
         case "8":
         	System.out.println("Working Directory: " + System.getProperty("user.dir"));
+        case "9":
+        	sendMultipleEmails();
+        	
+        	break;
         default:
         	break;
         }
